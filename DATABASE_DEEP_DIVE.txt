@@ -1,0 +1,923 @@
+╔══════════════════════════════════════════════════════════════╗
+║        DATABASE INTERACTIONS - COMPLETE DEEP DIVE            ║
+╚══════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHAT IS THE DATABASE?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DATABASE TYPE: SQLite3
+FILE NAME: police_station.db
+LOCATION: Project root directory
+SIZE: Starts ~100KB, grows with data
+
+WHY SQLite?
+✓ No separate server needed (embedded database)
+✓ Single file storage (easy backup)
+✓ Fast for small to medium data
+✓ Zero configuration
+✓ Perfect for this application size
+✓ Cross-platform compatible
+
+WHAT IT STORES:
+- All FIR records
+- All criminal records
+- All documents
+- All evidence items
+- All officer information
+- All reports
+
+HOW IT STORES:
+- Data organized in 6 tables
+- Each table has rows (records) and columns (fields)
+- Data persists permanently on disk
+- Survives server restarts
+- Can be backed up by copying file
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DATABASE FILE STRUCTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+police_station.db (Binary File)
+│
+├── Table: firs (100 records)
+│   ├── Row 1: FIR001 data
+│   ├── Row 2: FIR002 data
+│   └── Row 100: FIR100 data
+│
+├── Table: criminals (100 records)
+│   ├── Row 1: CR001 data
+│   └── Row 100: CR100 data
+│
+├── Table: documents (25 records)
+│   ├── Row 1: DOC001 data
+│   └── Row 25: DOC025 data
+│
+├── Table: reports (100 records)
+├── Table: officers (15 records)
+└── Table: evidence (100 records)
+
+PHYSICAL STORAGE:
+- Binary format (not human-readable)
+- Optimized for fast access
+- Indexed by PRIMARY KEY
+- Compressed automatically
+- Locked during writes (prevents corruption)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HOW DATABASE INTERACTS WITH SYSTEM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INTERACTION FLOW:
+
+User Action → Frontend → Backend → Database → Backend → Frontend → User
+
+DETAILED BREAKDOWN:
+
+1. USER SUBMITS DATA
+   Example: Register new FIR
+   ↓
+2. FRONTEND COLLECTS DATA
+   JavaScript: { name: "John", type: "Theft", description: "..." }
+   ↓
+3. FRONTEND SENDS TO BACKEND
+   HTTP POST to /api/firs
+   ↓
+4. BACKEND RECEIVES REQUEST
+   Flask: @app.route('/api/firs', methods=['POST'])
+   ↓
+5. BACKEND OPENS DATABASE CONNECTION
+   Python: conn = sqlite3.connect('police_station.db')
+   ↓
+6. BACKEND EXECUTES SQL COMMAND
+   SQL: INSERT INTO firs VALUES (...)
+   ↓
+7. DATABASE WRITES TO DISK
+   Binary data written to police_station.db file
+   ↓
+8. BACKEND COMMITS TRANSACTION
+   Python: conn.commit()  ← CRITICAL! Makes it permanent
+   ↓
+9. BACKEND CLOSES CONNECTION
+   Python: conn.close()
+   ↓
+10. BACKEND SENDS RESPONSE
+    JSON: { success: true, id: "FIR101" }
+    ↓
+11. FRONTEND RECEIVES RESPONSE
+    JavaScript processes result
+    ↓
+12. FRONTEND UPDATES UI
+    New FIR appears in table
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DATABASE CONNECTION LIFECYCLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EVERY DATABASE OPERATION FOLLOWS THIS PATTERN:
+
+STEP 1: OPEN CONNECTION
+```python
+conn = sqlite3.connect('police_station.db')
+```
+What happens:
+- Python opens the database file
+- Creates a connection object
+- Locks file for this operation
+- Ready to execute commands
+
+STEP 2: CREATE CURSOR
+```python
+cursor = conn.cursor()
+```
+What happens:
+- Cursor = pointer to execute SQL
+- Like a pen to write in database
+- Can execute multiple commands
+
+STEP 3: EXECUTE SQL
+```python
+cursor.execute('INSERT INTO firs VALUES (?, ?, ?)', (val1, val2, val3))
+```
+What happens:
+- SQL command sent to database
+- ? = placeholders (prevents SQL injection)
+- Values safely inserted
+- Changes in memory (not yet on disk)
+
+STEP 4: COMMIT (SAVE)
+```python
+conn.commit()
+```
+What happens:
+- Writes changes to disk
+- Makes changes permanent
+- Without this, changes are lost!
+- Critical for data persistence
+
+STEP 5: CLOSE CONNECTION
+```python
+conn.close()
+```
+What happens:
+- Releases database lock
+- Frees memory
+- Allows other operations
+- Good practice
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DATABASE OPERATIONS IN DETAIL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPERATION 1: CREATE (INSERT)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Example: Adding new FIR
+
+CODE:
+```python
+conn = sqlite3.connect('police_station.db')
+cursor = conn.cursor()
+
+cursor.execute('''
+    INSERT INTO firs (id, name, type, date, status, description, score)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+''', ('FIR101', 'John Doe', 'Theft', '13/11/2025', 'Registered', 
+      'Mobile stolen', 0.65))
+
+conn.commit()  # SAVES TO DISK
+conn.close()
+```
+
+WHAT HAPPENS IN DATABASE:
+1. Database opens firs table
+2. Creates new row at end
+3. Fills columns with values:
+   - id column = 'FIR101'
+   - name column = 'John Doe'
+   - type column = 'Theft'
+   - etc.
+4. Writes row to disk (after commit)
+5. Updates internal index
+6. Row now permanently stored
+
+DISK STORAGE:
+Before: 100 rows in firs table
+After: 101 rows in firs table
+File size increases by ~200 bytes
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPERATION 2: READ (SELECT)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Example: Getting all FIRs
+
+CODE:
+```python
+conn = sqlite3.connect('police_station.db')
+cursor = conn.cursor()
+
+cursor.execute('SELECT * FROM firs ORDER BY score DESC')
+rows = cursor.fetchall()  # Gets all rows
+
+conn.close()
+```
+
+WHAT HAPPENS IN DATABASE:
+1. Database opens firs table
+2. Reads all rows from disk
+3. Sorts by score column (descending)
+4. Returns rows as Python list
+5. Each row = tuple of values
+
+RESULT:
+rows = [
+    ('FIR001', 'John Doe', 'Theft', '13/11/2025', 'Registered', '...', 0.65),
+    ('FIR002', 'Jane Smith', 'Assault', '12/11/2025', 'Closed', '...', 0.55),
+    ...
+]
+
+NO DISK CHANGES: Read-only operation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPERATION 3: UPDATE (MODIFY)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Example: Updating criminal status
+
+CODE:
+```python
+conn = sqlite3.connect('police_station.db')
+cursor = conn.cursor()
+
+cursor.execute('''
+    UPDATE criminals 
+    SET status = ?
+    WHERE id = ?
+''', ('Under Investigation', 'CR001'))
+
+conn.commit()  # SAVES CHANGE
+conn.close()
+```
+
+WHAT HAPPENS IN DATABASE:
+1. Database opens criminals table
+2. Finds row where id = 'CR001'
+3. Changes status column value
+4. Old value: 'Registered'
+5. New value: 'Under Investigation'
+6. Writes change to disk (after commit)
+7. Row updated permanently
+
+DISK STORAGE:
+Before: CR001 status = 'Registered'
+After: CR001 status = 'Under Investigation'
+File size stays same (just modified data)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPERATION 4: DELETE (REMOVE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Example: Deleting test FIR
+
+CODE:
+```python
+conn = sqlite3.connect('police_station.db')
+cursor = conn.cursor()
+
+cursor.execute('DELETE FROM firs WHERE id = ?', ('FIR_TEST',))
+
+conn.commit()  # SAVES DELETION
+conn.close()
+```
+
+WHAT HAPPENS IN DATABASE:
+1. Database opens firs table
+2. Finds row where id = 'FIR_TEST'
+3. Marks row as deleted
+4. Removes from index
+5. Frees up space
+6. Row permanently removed
+
+DISK STORAGE:
+Before: 101 rows
+After: 100 rows
+File size decreases slightly
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DATA PERSISTENCE EXPLAINED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHAT IS PERSISTENCE?
+Data stays saved even after:
+- Server stops
+- Computer restarts
+- Power outage
+- Application closes
+
+HOW IT WORKS:
+
+MEMORY (RAM) vs DISK (STORAGE)
+┌─────────────────────────────────────────────────────────────┐
+│ MEMORY (RAM) - TEMPORARY                                     │
+│ - Fast access                                                │
+│ - Lost when power off                                        │
+│ - Used during operations                                     │
+│ - Example: Variables in Python                               │
+└─────────────────────────────────────────────────────────────┘
+                         ↓ conn.commit()
+┌─────────────────────────────────────────────────────────────┐
+│ DISK (STORAGE) - PERMANENT                                   │
+│ - Slower access                                              │
+│ - Survives power off                                         │
+│ - Used for long-term storage                                 │
+│ - Example: police_station.db file                            │
+└─────────────────────────────────────────────────────────────┘
+
+THE COMMIT PROCESS:
+
+WITHOUT COMMIT:
+1. Execute INSERT command
+2. Data in memory only
+3. Server crashes
+4. Data LOST! ❌
+
+WITH COMMIT:
+1. Execute INSERT command
+2. Data in memory
+3. Call conn.commit()
+4. Data written to disk
+5. Server crashes
+6. Data SAFE! ✅
+
+EXAMPLE SCENARIO:
+
+Officer registers FIR at 2:00 PM
+↓
+Backend inserts into database
+↓
+Backend calls conn.commit()
+↓
+Data written to police_station.db file
+↓
+Power outage at 2:01 PM
+↓
+Server restarts at 2:05 PM
+↓
+Officer checks FIRs
+↓
+FIR is still there! ✅
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE STORAGE DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DATABASE FILE: police_station.db
+
+LOCATION:
+C:\police-station-ms\police_station.db
+(Same folder as app.py)
+
+FILE TYPE: Binary (not text)
+ENCODING: SQLite3 format
+READABLE: Only by SQLite tools
+
+FILE STRUCTURE:
+┌─────────────────────────────────────────────────────────────┐
+│ Header (100 bytes)                                           │
+│ - Database version                                           │
+│ - Page size                                                  │
+│ - File format                                                │
+├─────────────────────────────────────────────────────────────┤
+│ Schema (Table definitions)                                   │
+│ - CREATE TABLE statements                                    │
+│ - Column definitions                                         │
+│ - Indexes                                                    │
+├─────────────────────────────────────────────────────────────┤
+│ Data Pages                                                   │
+│ - Actual row data                                            │
+│ - Organized in pages (usually 4KB each)                      │
+│ - Indexed for fast access                                    │
+├─────────────────────────────────────────────────────────────┤
+│ Free Space                                                   │
+│ - Room for new data                                          │
+│ - Grows as needed                                            │
+└─────────────────────────────────────────────────────────────┘
+
+FILE SIZE GROWTH:
+Initial (empty): ~100 KB
+With 100 FIRs: ~150 KB
+With 1000 FIRs: ~500 KB
+With 10000 FIRs: ~5 MB
+
+BACKUP:
+Simple! Just copy the file:
+```
+copy police_station.db police_station_backup.db
+```
+
+RESTORE:
+Replace with backup:
+```
+copy police_station_backup.db police_station.db
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TABLE RELATIONSHIPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HOW TABLES CONNECT:
+
+┌─────────────┐
+│    FIRs     │ ← Main crime records
+│  (id: FIR001)│
+└──────┬──────┘
+       │
+       ├──→ ┌──────────────┐
+       │    │  Documents   │ ← Linked by fir_id
+       │    │ (fir_id: FIR001)│
+       │    └──────────────┘
+       │
+       └──→ ┌──────────────┐
+            │   Evidence   │ ← Linked by fir_id
+            │ (fir_id: FIR001)│
+            └──────────────┘
+
+┌─────────────┐
+│  Criminals  │ ← Criminal records
+│  (id: CR001) │
+└─────────────┘
+
+┌─────────────┐
+│   Officers  │ ← Officer database
+│ (id: IPS001) │
+└─────────────┘
+
+┌─────────────┐
+│   Reports   │ ← Internal reports
+│  (id: RPT001)│
+└─────────────┘
+
+EXAMPLE RELATIONSHIPS:
+
+FIR001 (Theft case)
+  ├─ DOC001 (Witness statement for FIR001)
+  ├─ DOC005 (Medical report for FIR001)
+  ├─ EV001 (Evidence: Stolen phone for FIR001)
+  └─ EV002 (Evidence: CCTV footage for FIR001)
+
+This creates a complete case file!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DATA FLOW: COMPLETE EXAMPLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SCENARIO: Officer registers a theft case
+
+STEP 1: USER INPUT
+Officer fills form:
+- Name: "Rajesh Kumar"
+- Type: "Theft"
+- Description: "Mobile phone stolen at market in Mumbai"
+
+STEP 2: FRONTEND PROCESSING
+JavaScript collects data:
+```javascript
+const data = {
+    name: "Rajesh Kumar",
+    type: "Theft",
+    description: "Mobile phone stolen at market in Mumbai"
+};
+```
+
+STEP 3: HTTP REQUEST
+Frontend sends to backend:
+```
+POST /api/firs
+Content-Type: application/json
+Body: {"name":"Rajesh Kumar","type":"Theft","description":"..."}
+```
+
+STEP 4: BACKEND RECEIVES
+Flask processes request:
+```python
+@app.route('/api/firs', methods=['POST'])
+def create_fir():
+    data = request.json  # Gets the JSON data
+```
+
+STEP 5: ID GENERATION
+Backend generates unique ID:
+```python
+cursor.execute('SELECT COUNT(*) FROM firs')
+count = cursor.fetchone()[0]  # Returns 100
+new_id = f'FIR{str(count + 1).zfill(3)}'  # Creates 'FIR101'
+```
+
+STEP 6: AI ANALYSIS
+Sentiment analyzer calculates score:
+```python
+score = analyze_case_sentiment(data['description'])
+# Analyzes: "Mobile phone stolen at market in Mumbai"
+# Finds: "stolen" (medium priority)
+# Returns: 0.55
+```
+
+STEP 7: DATABASE CONNECTION
+Backend opens database:
+```python
+conn = sqlite3.connect('police_station.db')
+cursor = conn.cursor()
+```
+
+STEP 8: SQL EXECUTION
+Backend inserts data:
+```python
+cursor.execute('''
+    INSERT INTO firs (id, name, type, date, status, description, score)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+''', ('FIR101', 'Rajesh Kumar', 'Theft', '13/11/2025', 
+      'Registered', 'Mobile phone stolen...', 0.55))
+```
+
+STEP 9: COMMIT TO DISK
+Backend saves permanently:
+```python
+conn.commit()  # Writes to police_station.db file
+```
+
+STEP 10: CLOSE CONNECTION
+```python
+conn.close()
+```
+
+STEP 11: RESPONSE
+Backend sends success:
+```python
+return jsonify({
+    'success': True,
+    'id': 'FIR101',
+    'fir': {
+        'id': 'FIR101',
+        'name': 'Rajesh Kumar',
+        'type': 'Theft',
+        'date': '13/11/2025',
+        'status': 'Registered',
+        'description': 'Mobile phone stolen...',
+        'score': 0.55
+    }
+})
+```
+
+STEP 12: FRONTEND UPDATES
+JavaScript receives response:
+```javascript
+if (result.success) {
+    alert('FIR FIR101 registered successfully!');
+    closeFIRModal();
+    await fetchFIRs();  // Refresh list
+}
+```
+
+STEP 13: DATABASE STATE
+police_station.db now contains:
+- 101 FIRs (was 100)
+- New row with FIR101 data
+- Permanently saved on disk
+
+STEP 14: UI UPDATE
+Table shows new FIR:
+┌────────┬──────────────┬───────┬────────────┬────────────┬───────┐
+│ FIR ID │ NAME         │ TYPE  │ DATE       │ STATUS     │ SCORE │
+├────────┼──────────────┼───────┼────────────┼────────────┼───────┤
+│ FIR101 │ Rajesh Kumar │ Theft │ 13/11/2025 │ Registered │ 0.55  │
+└────────┴──────────────┴───────┴────────────┴────────────┴───────┘
+
+STEP 15: SEARCHABLE
+Officer can now search "Rajesh" and find FIR101 instantly!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DATABASE INITIALIZATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHEN DOES DATABASE GET CREATED?
+
+First time you run: python app.py
+
+WHAT HAPPENS:
+
+1. app.py starts
+2. Calls init_db() function
+3. Checks if police_station.db exists
+4. If not, creates new file
+5. Creates all 6 tables
+6. Adds sample data (5 FIRs, 5 criminals, etc.)
+7. Commits to disk
+8. Database ready!
+
+CODE:
+```python
+def init_db():
+    conn = sqlite3.connect('police_station.db')
+    cursor = conn.cursor()
+    
+    # Create FIRs table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS firs (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL,
+            date TEXT NOT NULL,
+            status TEXT NOT NULL,
+            description TEXT NOT NULL,
+            score REAL NOT NULL
+        )
+    ''')
+    
+    # Create other tables...
+    
+    # Check if empty
+    cursor.execute('SELECT COUNT(*) FROM firs')
+    if cursor.fetchone()[0] == 0:
+        # Add sample data
+        sample_firs = [...]
+        for fir in sample_firs:
+            cursor.execute('INSERT INTO firs VALUES (...)')
+    
+    conn.commit()
+    conn.close()
+
+# Called on startup
+init_db()
+```
+
+RESULT:
+- police_station.db file created
+- All tables created
+- Sample data inserted
+- Ready to use!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DATA INTEGRITY & SAFETY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HOW DATA STAYS SAFE:
+
+1. TRANSACTIONS
+   - All changes in transaction
+   - Either all succeed or all fail
+   - No partial updates
+   - Database stays consistent
+
+2. COMMIT MECHANISM
+   - Changes not saved until commit
+   - If error occurs, rollback
+   - Data integrity maintained
+
+3. FILE LOCKING
+   - Only one write at a time
+   - Prevents corruption
+   - Concurrent reads allowed
+
+4. PRIMARY KEYS
+   - Unique IDs (FIR001, CR001, etc.)
+   - No duplicates possible
+   - Fast lookups
+
+5. DATA TYPES
+   - TEXT for strings
+   - REAL for numbers
+   - Enforced by database
+   - Prevents invalid data
+
+6. NOT NULL CONSTRAINTS
+   - Required fields must have values
+   - Prevents incomplete records
+   - Data quality maintained
+
+EXAMPLE - TRANSACTION SAFETY:
+
+Scenario: Adding FIR but server crashes
+
+WITHOUT TRANSACTION:
+1. Insert FIR data
+2. Server crashes
+3. Partial data saved
+4. Database corrupted ❌
+
+WITH TRANSACTION:
+1. Begin transaction
+2. Insert FIR data
+3. Server crashes BEFORE commit
+4. Transaction rolled back
+5. No partial data
+6. Database safe ✅
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUERY OPTIMIZATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HOW DATABASE FINDS DATA FAST:
+
+1. PRIMARY KEY INDEX
+   - Automatic index on id column
+   - O(log n) lookup time
+   - Very fast even with 10,000 records
+
+2. SORTING
+   - ORDER BY score DESC
+   - Database sorts efficiently
+   - Returns sorted results
+
+3. FILTERING
+   - WHERE id = 'FIR001'
+   - Uses index for fast lookup
+   - No need to scan all rows
+
+EXAMPLE QUERY SPEEDS:
+
+Find FIR by ID:
+```sql
+SELECT * FROM firs WHERE id = 'FIR001'
+```
+Time: <1 millisecond (uses index)
+
+Get all FIRs sorted:
+```sql
+SELECT * FROM firs ORDER BY score DESC
+```
+Time: ~5 milliseconds for 100 records
+
+Search by name:
+```sql
+SELECT * FROM firs WHERE name LIKE '%John%'
+```
+Time: ~10 milliseconds (scans all rows)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONCURRENT ACCESS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHAT IF MULTIPLE USERS ACCESS SIMULTANEOUSLY?
+
+SQLite handles this:
+
+READING (SELECT):
+- Multiple users can read at same time
+- No conflicts
+- Fast and safe
+
+WRITING (INSERT/UPDATE/DELETE):
+- Only one user can write at a time
+- Database locks during write
+- Other writes wait
+- Reads still allowed
+
+EXAMPLE:
+
+User A: Reading FIRs (allowed)
+User B: Reading FIRs (allowed)
+User C: Adding FIR (locks database)
+User D: Updating criminal (waits for C)
+User E: Reading criminals (allowed)
+
+After C finishes:
+- D can now write
+- Everyone else continues reading
+
+LOCK DURATION:
+- Very short (milliseconds)
+- Users don't notice
+- System handles automatically
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BACKUP & RECOVERY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HOW TO BACKUP:
+
+METHOD 1: File Copy
+```bash
+copy police_station.db backup\police_station_2025-11-13.db
+```
+Pros: Simple, fast
+Cons: Must stop server first
+
+METHOD 2: SQLite Backup Command
+```bash
+sqlite3 police_station.db ".backup backup.db"
+```
+Pros: Can backup while running
+Cons: Requires SQLite tools
+
+METHOD 3: Scheduled Backup
+Create script to backup daily:
+```python
+import shutil
+from datetime import datetime
+
+date = datetime.now().strftime('%Y-%m-%d')
+shutil.copy('police_station.db', f'backup_{date}.db')
+```
+
+HOW TO RESTORE:
+
+1. Stop server
+2. Replace database file:
+   ```bash
+   copy backup\police_station_2025-11-13.db police_station.db
+   ```
+3. Start server
+4. Data restored!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DATABASE MAINTENANCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+VACUUM (Optimize):
+```sql
+VACUUM;
+```
+What it does:
+- Reclaims unused space
+- Defragments database
+- Improves performance
+- Reduces file size
+
+ANALYZE (Update Statistics):
+```sql
+ANALYZE;
+```
+What it does:
+- Updates query optimizer statistics
+- Improves query planning
+- Better performance
+
+INTEGRITY CHECK:
+```sql
+PRAGMA integrity_check;
+```
+What it does:
+- Checks for corruption
+- Verifies data integrity
+- Returns "ok" if healthy
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DATABASE ROLE IN SYSTEM:
+
+1. PERMANENT STORAGE
+   - All data saved to disk
+   - Survives restarts
+   - Single file (police_station.db)
+
+2. FAST ACCESS
+   - Indexed lookups
+   - Efficient queries
+   - Millisecond response times
+
+3. DATA INTEGRITY
+   - Transactions ensure consistency
+   - No partial updates
+   - Safe from corruption
+
+4. CONCURRENT ACCESS
+   - Multiple reads simultaneously
+   - Controlled writes
+   - Automatic locking
+
+5. EASY BACKUP
+   - Simple file copy
+   - Point-in-time recovery
+   - Disaster recovery ready
+
+THE DATABASE IS THE HEART OF THE SYSTEM:
+- Stores all information
+- Ensures data persistence
+- Enables fast retrieval
+- Maintains data integrity
+- Supports concurrent users
+
+WITHOUT DATABASE:
+- No permanent storage
+- Data lost on restart
+- No search capability
+- No data integrity
+
+WITH DATABASE:
+- Everything saved forever
+- Instant search and retrieval
+- Data always consistent
+- System reliable and robust
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

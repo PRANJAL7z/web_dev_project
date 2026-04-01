@@ -1,0 +1,152 @@
+╔══════════════════════════════════════════════════════════════╗
+║           REGRESSION GRAPH - QUICK GUIDE                     ║
+╚══════════════════════════════════════════════════════════════╝
+
+✅ REGRESSION GRAPH ADDED SUCCESSFULLY!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHAT IT SHOWS
+
+📊 Linear Regression Analysis Graph
+   - Shows relationship between crime COUNT and crime SCORE
+   - Uses regions from your FIR and criminal records
+   - Predicts crime severity based on frequency
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GRAPH ELEMENTS
+
+🔵 Blue Line = Regression Line (prediction trend)
+🔷 Cyan Dots = Actual Data Points (real cities)
+📍 Labels = City names above each point
+📐 Axes = Crime Count (X) vs Crime Score (Y)
+📊 Model Info = Equation (y = mx + b) and R² score
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HOW TO VIEW
+
+1. Start Server:
+   python app.py
+
+2. Open Browser:
+   http://127.0.0.1:5000
+
+3. Navigate:
+   Click "Crime Hotspot" in navigation
+
+4. Scroll Down:
+   You'll see graphs in this order:
+   
+   ┌─────────────────────────────────────┐
+   │ 📈 Linear Regression Analysis       │ ← NEW!
+   │    (Crime Count vs Score)           │
+   │    Shows: Regions from FIRs         │
+   └─────────────────────────────────────┘
+   
+   ┌─────────────────────────────────────┐
+   │ 📊 City Crime Rankings              │
+   │    (Bar Graph)                      │
+   └─────────────────────────────────────┘
+   
+   ┌─────────────────────────────────────┐
+   │ 📈 Crime Trend Predictions          │
+   │    (Next 3 Months)                  │
+   └─────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EXAMPLE INTERPRETATION
+
+Graph shows:
+• Agra: 10 crimes, 0.558 score ●
+• Pune: 7 crimes, 0.501 score ●
+• Delhi: 9 crimes, 0.497 score ●
+• Blue line through points
+
+Model: y = 0.0234x + 0.3456
+R² Score: 0.7823
+
+Meaning:
+✓ Agra has highest crime severity
+✓ Positive correlation (more crimes = higher severity)
+✓ R² of 0.78 = Good model fit (78% accuracy)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHAT YOU CAN LEARN
+
+1. Crime Patterns
+   → See if more crimes lead to higher severity
+
+2. Outliers
+   → Cities that don't fit the pattern
+
+3. Predictions
+   → Use line to predict severity for new areas
+
+4. Resource Allocation
+   → Focus on cities above the line (worse than expected)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DATA SOURCE
+
+The graph uses:
+✓ FIR descriptions (extracts locations)
+✓ Crime scores (sentiment analysis)
+✓ Crime counts (number per region)
+✓ All regions mentioned in your database
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TECHNICAL DETAILS
+
+Algorithm: Linear Regression (scikit-learn)
+Formula: y = mx + b
+  • m = coefficient (slope)
+  • b = intercept
+  • x = crime count
+  • y = predicted score
+
+R² Score: Model accuracy
+  • 1.0 = Perfect fit
+  • 0.5 = Moderate fit
+  • 0.0 = No correlation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FILES MODIFIED
+
+✓ ml_models/simple_crime_analyzer.py
+  - Enhanced regression analysis
+  - Added regression_data to report
+
+✓ templates/index.html
+  - Added regression graph section
+  - Added canvas and model info display
+
+✓ static/script.js
+  - Added createRegressionChart() function
+  - Draws scatter plot and regression line
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+QUICK TEST
+
+Step 1: python app.py
+Step 2: Open http://127.0.0.1:5000
+Step 3: Click "Crime Hotspot"
+Step 4: See the regression graph! ✅
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STATUS: ✅ WORKING
+
+The regression graph is now live and showing regions from your
+FIR and criminal records with linear regression analysis!
+
+Server is running at: http://127.0.0.1:5000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
